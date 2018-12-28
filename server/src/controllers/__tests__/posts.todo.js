@@ -1,12 +1,38 @@
-// import * as postsController from '../posts.todo'
-// import db from '../../utils/db'
 // eslint-disable-next-line no-unused-vars
 import {initDb, generate} from 'til-server-test-utils'
+import * as postsController from '../posts.todo'
+import db from '../../utils/db'
 
 // I'll give this one to you. You want the database to be fresh
 // the initDb function will initialize the database with random users and posts
 // you can rely on that fact in your tests if you want.
 // (For example, getPosts should return all the posts in the DB)
+function setup() {
+  const req = {
+    params: {},
+    body: {},
+  }
+  const res = {}
+  Object.assign(res, {
+    status: jest.fn(
+      function status() {
+        return this
+      }.bind(res),
+    ),
+    json: jest.fn(
+      function json() {
+        return this
+      }.bind(res),
+    ),
+    send: jest.fn(
+      function send() {
+        return this
+      }.bind(res),
+    ),
+  })
+  return {req, res}
+}
+
 beforeEach(() => initDb())
 
 test('getPosts returns all posts in the database', async () => {
@@ -16,6 +42,11 @@ test('getPosts returns all posts in the database', async () => {
   // Assert:
   //   - ensure that your mock object functions were called properly
   //   - BONUS: ensure that the posts returned are the ones in the database `await db.getPosts()`
+  const {req, res} = setup()
+  await postsController.getPosts(req, res)
+  expect(res.json).toHaveBeenCalledTimes(1)
+  const allPosts = await db.getPosts()
+  expect(res.json).toHaveBeenCalledWith({posts: allPosts})
 })
 
 test('getPost returns the specific post', async () => {
@@ -23,10 +54,16 @@ test('getPost returns the specific post', async () => {
   // Arrange:
   //   - create a test post and insert it into the database using `await db.insertPost(generate.postData())`
   //   - set up the req and res mock objects. Make sure the req.params has the test post ID
+  const testPost = await db.insertPost(generate.postData())
+  const {req, res} = setup()
+  req.params = {id: testPost.id}
   // Act: Call getPost on the postsController with the req and res
+  await postsController(req, res)
   // Assert:
   //   - ensure that your mock object functions were called properly
   //   - BONUS: ensure that the post you got back is the same one in the db
+  expect(res.json).toHaveBeenCalledTimes(1)
+  expect(res.json).toHaveBeenCalledWith({post: testPost})
 })
 
 test('updatePost updates the post with the given changes', async () => {
